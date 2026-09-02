@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Member/admin profiles. A user can only ever create/read their own
+    // profile (or an admin can read/manage any profile). Nobody can grant
+    // themselves the 'admin' role except the one hardcoded ministry email,
+    // and only at account-creation time.
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId &&
+        (request.resource.data.role == 'member' ||
+         (request.resource.data.role == 'admin' &&
+          request.auth.token.email == 'contactunveiledassembly@gmail.com'));
+      allow update: if isAdmin() ||
+        (isSignedIn() && request.auth.uid == userId &&
+         request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+    }
+
+    // A slot doc just marks a date+time as taken (no personal data), so it's
+    // safe for anyone to read (to see availability) and create (to book).
+    // Only an admin can delete one (freeing the time back up).
+    match /slots/{slotId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // Booking requests hold personal data (name/email), so only the admin
+    // or the booker themself (if signed in) can read them back. Anyone can
+    // create one (guest booking is allowed), but it must start 'pending'.
+    match /bookings/{bookingId} {
+      allow create: if request.resource.data.keys().hasAll(
+                        ['name','email','sessionType','date','time','status']) &&
+                      request.resource.data.status == 'pending';
+      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}
