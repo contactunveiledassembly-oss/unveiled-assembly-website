@@ -227,6 +227,7 @@
     .form-field{display:flex;flex-direction:column;gap:8px}
     .form-field.full{grid-column:1/-1}
     .form-field label,.permission-label{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:#b8ada5}
+    .portal-panel .form-field label{color:#70675f}
     .form-field input,.form-field select,.form-field textarea{width:100%;border:1px solid rgba(242,237,228,.2);border-radius:0;background:#191817;color:var(--ivory);padding:13px 14px;font:inherit;font-size:15px}
     .form-field textarea{min-height:112px;resize:vertical;line-height:1.55}
     .form-field input[type="file"]{font-size:12px;color:#bdb3aa}
@@ -748,6 +749,49 @@
           </div>
         </article>
         <article class="portal-panel">
+          <span class="portal-label">Confirmed Upcoming Appointments</span>
+          <div id="ownerConfirmedList">
+            <p style="color:#6d645d">Loading appointments…</p>
+          </div>
+        </article>
+        <article class="portal-panel">
+          <span class="portal-label">Add An Appointment</span>
+          <p style="color:#6d645d;margin-bottom:14px">Manually schedule someone (phone-in requests, etc). This books and confirms in one step.</p>
+          <form id="adminBookForm">
+            <div class="story-form-grid">
+              <div class="form-field">
+                <label for="adminBookName">Name</label>
+                <input id="adminBookName" type="text" placeholder="First and last name" required style="background:#fffdf9;color:var(--ink);border-color:#c9bfb4" />
+              </div>
+              <div class="form-field">
+                <label for="adminBookEmail">Email</label>
+                <input id="adminBookEmail" type="email" placeholder="Their email" required style="background:#fffdf9;color:var(--ink);border-color:#c9bfb4" />
+              </div>
+              <div class="form-field">
+                <label for="adminBookType">Session</label>
+                <select id="adminBookType" required style="background:#fffdf9;color:var(--ink);border-color:#c9bfb4">
+                  <option value="30-minute">30-Minute One-on-One</option>
+                  <option value="15-minute">15-Minute Pop-Up</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="adminBookDate">Date (Tue or Thu)</label>
+                <input id="adminBookDate" type="date" required style="background:#fffdf9;color:var(--ink);border-color:#c9bfb4" />
+              </div>
+              <div class="form-field full">
+                <label for="adminBookTime">Time</label>
+                <select id="adminBookTime" required disabled style="background:#fffdf9;color:var(--ink);border-color:#c9bfb4">
+                  <option value="">Choose a date first</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn" type="submit" id="adminBookSubmitBtn" style="background:var(--wine);color:var(--ivory);border-color:var(--wine)">Add &amp; Confirm</button>
+              <div class="form-status" id="adminBookStatus" role="status" aria-live="polite" style="color:#87535a"></div>
+            </div>
+          </form>
+        </article>
+        <article class="portal-panel">
           <span class="portal-label">Member Accounts</span>
           <div id="ownerMembersList">
             <p style="color:#6d645d">Loading member accounts…</p>
@@ -1242,29 +1286,17 @@
       return intervals;
     }
 
-    async function loadTimeSlots(){
-      const dateStr = bookingDateInput.value;
-      bookingTimeSelect.innerHTML = '';
-      bookingTimeSelect.disabled = true;
-      if(!dateStr){
-        bookingTimeSelect.appendChild(new Option('Choose a date first', ''));
-        return;
-      }
+    // Returns { ok, reason, openStarts } — shared by the public booking form
+    // and the admin manual-add form so their availability always agrees.
+    async function computeOpenSlots(dateStr, duration){
+      if(!dateStr) return { ok: false, reason: 'Choose a date first' };
       const weekday = new Date(dateStr + 'T12:00:00').getDay();
-      if(!AVAILABILITY_DAYS.includes(weekday)){
-        bookingTimeSelect.appendChild(new Option('No sessions on that day — pick a Tue or Thu', ''));
-        return;
-      }
-      const service = bookingForm.querySelector('input[name="sessionType"]:checked').value;
-      const duration = SESSION_MINUTES[service];
-      bookingTimeSelect.appendChild(new Option('Loading available times…', ''));
+      if(!AVAILABILITY_DAYS.includes(weekday)) return { ok: false, reason: 'No sessions on that day — pick a Tue or Thu' };
       let booked;
       try {
         booked = await bookedIntervalsForDate(dateStr);
       } catch (err) {
-        bookingTimeSelect.innerHTML = '';
-        bookingTimeSelect.appendChild(new Option('Could not load availability — try again', ''));
-        return;
+        return { ok: false, reason: 'Could not load availability — try again' };
       }
       const openStarts = [];
       for(let start = AVAILABILITY_START_MIN; start + duration <= AVAILABILITY_END_MIN; start += duration){
@@ -1272,14 +1304,33 @@
         const overlaps = booked.some(([bStart, bEnd]) => start < bEnd && end > bStart);
         if(!overlaps) openStarts.push(start);
       }
-      bookingTimeSelect.innerHTML = '';
-      if(openStarts.length === 0){
-        bookingTimeSelect.appendChild(new Option('No open times on that date', ''));
+      if(openStarts.length === 0) return { ok: false, reason: 'No open times on that date' };
+      return { ok: true, openStarts };
+    }
+
+    async function populateTimeSelect(selectEl, dateStr, duration){
+      selectEl.innerHTML = '';
+      selectEl.disabled = true;
+      if(!dateStr){
+        selectEl.appendChild(new Option('Choose a date first', ''));
         return;
       }
-      bookingTimeSelect.appendChild(new Option('Choose a time', ''));
-      openStarts.forEach(start => bookingTimeSelect.appendChild(new Option(minutesToLabel(start), minutesToHHMM(start))));
-      bookingTimeSelect.disabled = false;
+      selectEl.appendChild(new Option('Loading available times…', ''));
+      const result = await computeOpenSlots(dateStr, duration);
+      selectEl.innerHTML = '';
+      if(!result.ok){
+        selectEl.appendChild(new Option(result.reason, ''));
+        return;
+      }
+      selectEl.appendChild(new Option('Choose a time', ''));
+      result.openStarts.forEach(start => selectEl.appendChild(new Option(minutesToLabel(start), minutesToHHMM(start))));
+      selectEl.disabled = false;
+    }
+
+    async function loadTimeSlots(){
+      const dateStr = bookingDateInput.value;
+      const service = bookingForm.querySelector('input[name="sessionType"]:checked').value;
+      await populateTimeSelect(bookingTimeSelect, dateStr, SESSION_MINUTES[service]);
     }
 
     function openBooking(service){
@@ -1309,6 +1360,20 @@
       radio.addEventListener('change', loadTimeSlots);
     });
 
+    // Shared by the public booking form and the admin manual-add form.
+    // Throws Error('slot-taken') if the exact slot was grabbed concurrently.
+    async function createBooking({ name, email, sessionType, date, time, status, uid }){
+      const slotId = date + '_' + time;
+      await runTransaction(db, async (tx) => {
+        const slotRef = doc(db, 'slots', slotId);
+        const slotSnap = await tx.get(slotRef);
+        if(slotSnap.exists()) throw new Error('slot-taken');
+        tx.set(slotRef, { date, time, sessionType, createdAt: serverTimestamp() });
+        const bookingRef = doc(collection(db, 'bookings'));
+        tx.set(bookingRef, { slotId, date, time, sessionType, name, email, uid: uid || null, status, createdAt: serverTimestamp() });
+      });
+    }
+
     bookingForm.addEventListener('submit', async event => {
       event.preventDefault();
       const service = bookingForm.querySelector('input[name="sessionType"]:checked').value;
@@ -1322,19 +1387,10 @@
       }
       bookingSubmitBtn.disabled = true;
       bookingStatus.textContent = 'Requesting your session…';
-      const slotId = dateStr + '_' + time;
       try {
-        await runTransaction(db, async (tx) => {
-          const slotRef = doc(db, 'slots', slotId);
-          const slotSnap = await tx.get(slotRef);
-          if(slotSnap.exists()) throw new Error('slot-taken');
-          tx.set(slotRef, { date: dateStr, time, sessionType: service, createdAt: serverTimestamp() });
-          const bookingRef = doc(collection(db, 'bookings'));
-          tx.set(bookingRef, {
-            slotId, date: dateStr, time, sessionType: service, name, email,
-            uid: currentUser ? currentUser.uid : null,
-            status: 'pending', createdAt: serverTimestamp()
-          });
+        await createBooking({
+          name, email, sessionType: service, date: dateStr, time,
+          status: 'pending', uid: currentUser ? currentUser.uid : null
         });
         bookingStatus.textContent = 'Request received — your ' + (service === '30-minute' ? '30-minute' : '15-minute') +
           ' session on ' + dateStr + ' at ' + minutesToLabel(hhmmToMinutes(time)) + ' is pending confirmation. You will be contacted at ' + email + '.';
@@ -1350,6 +1406,51 @@
         }
       } finally {
         bookingSubmitBtn.disabled = false;
+      }
+    });
+
+    // ---- Admin: manually add + auto-confirm an appointment ----
+    const adminBookForm = document.getElementById('adminBookForm');
+    const adminBookDateInput = document.getElementById('adminBookDate');
+    const adminBookTimeSelect = document.getElementById('adminBookTime');
+    const adminBookTypeSelect = document.getElementById('adminBookType');
+    const adminBookSubmitBtn = document.getElementById('adminBookSubmitBtn');
+    const adminBookStatus = document.getElementById('adminBookStatus');
+    adminBookDateInput.min = new Date().toISOString().slice(0, 10);
+
+    async function loadAdminTimeSlots(){
+      await populateTimeSelect(adminBookTimeSelect, adminBookDateInput.value, SESSION_MINUTES[adminBookTypeSelect.value]);
+    }
+    adminBookDateInput.addEventListener('change', loadAdminTimeSlots);
+    adminBookTypeSelect.addEventListener('change', loadAdminTimeSlots);
+
+    adminBookForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const name = document.getElementById('adminBookName').value.trim();
+      const email = document.getElementById('adminBookEmail').value.trim();
+      const service = adminBookTypeSelect.value;
+      const dateStr = adminBookDateInput.value;
+      const time = adminBookTimeSelect.value;
+      if(!dateStr || !time){
+        adminBookStatus.textContent = 'Choose a date and an available time.';
+        return;
+      }
+      adminBookSubmitBtn.disabled = true;
+      adminBookStatus.textContent = 'Adding appointment…';
+      try {
+        await createBooking({ name, email, sessionType: service, date: dateStr, time, status: 'confirmed' });
+        adminBookStatus.textContent = 'Added and confirmed.';
+        adminBookForm.reset();
+        adminBookTimeSelect.innerHTML = '';
+        adminBookTimeSelect.appendChild(new Option('Choose a date first', ''));
+        adminBookTimeSelect.disabled = true;
+        loadOwnerConfirmed();
+      } catch (err) {
+        adminBookStatus.textContent = err.message === 'slot-taken'
+          ? 'That time is already booked — pick another.'
+          : 'Could not add that appointment. Please try again.';
+      } finally {
+        adminBookSubmitBtn.disabled = false;
       }
     });
 
@@ -1382,7 +1483,35 @@
     // ---- Ministry (admin) view: real pending bookings + member roster ----
     async function loadOwnerData(){
       if(!currentProfile || currentProfile.role !== 'admin') return;
-      await Promise.all([loadOwnerBookings(), loadOwnerMembers()]);
+      await Promise.all([loadOwnerBookings(), loadOwnerConfirmed(), loadOwnerMembers()]);
+    }
+
+    async function loadOwnerConfirmed(){
+      const container = document.getElementById('ownerConfirmedList');
+      if(!container) return;
+      container.innerHTML = '<p style="color:#6d645d">Loading appointments…</p>';
+      try {
+        const snap = await getDocs(query(collection(db, 'bookings'), where('status', '==', 'confirmed')));
+        const today = new Date().toISOString().slice(0, 10);
+        const items = [];
+        snap.forEach(docSnap => {
+          const b = docSnap.data();
+          if(b.date >= today) items.push(b);
+        });
+        if(items.length === 0){
+          container.innerHTML = '<p style="color:#6d645d">No upcoming confirmed appointments.</p>';
+          return;
+        }
+        items.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+        container.innerHTML = items.map(b => {
+          const label = b.sessionType === '30-minute' ? '30-Minute One-on-One' : '15-Minute Pop-Up';
+          return '<div class="portal-row"><div><strong>' + escapeHtml(b.name) + '</strong><small>' +
+            escapeHtml(label) + ' · ' + escapeHtml(b.date) + ' · ' + escapeHtml(minutesToLabel(hhmmToMinutes(b.time))) +
+            ' ET · ' + escapeHtml(b.email) + '</small></div></div>';
+        }).join('');
+      } catch (err) {
+        container.innerHTML = '<p style="color:#6d645d">Could not load appointments.</p>';
+      }
     }
 
     async function loadOwnerBookings(){
@@ -1424,6 +1553,7 @@
         if(confirmBtn){
           await updateDoc(doc(db, 'bookings', bookingId), { status: 'confirmed' });
           portalOwnerStatus.textContent = 'Booking confirmed.';
+          loadOwnerConfirmed();
         } else {
           await updateDoc(doc(db, 'bookings', bookingId), { status: 'declined' });
           if(slotId) await deleteDoc(doc(db, 'slots', slotId));
