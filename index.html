@@ -623,8 +623,8 @@
           <div class="member-benefit"><span>02</span>Access private Zoom links, workbooks, and recordings.</div>
           <div class="member-benefit"><span>03</span>Continue free and paid learning in one personal account.</div>
         </div>
-        <button class="btn fill" id="openMemberPortal" type="button">Open Login Preview</button>
-        <span class="mockup-note" style="color:#8f8780">Portal mockup—real member accounts will be connected through Wix later.</span>
+        <button class="btn fill" id="openMemberPortal" type="button">Sign In / Create Account</button>
+        <span class="mockup-note" style="color:#8f8780" id="memberTeaserNote">Create a free account to manage bookings and see what's ahead.</span>
       </div>
       <div class="member-preview reveal" aria-hidden="true">
         <div class="member-preview-top">
@@ -645,18 +645,18 @@
     </div>
   </section>
 
-  <dialog class="portal-dialog" id="memberPortalDialog" aria-label="My Assembly portal preview">
+  <dialog class="portal-dialog" id="memberPortalDialog" aria-label="My Assembly">
     <div class="portal-bar">
       <div class="portal-brand">
         <img src="assets/ua-logo-tight.png" alt="" />
         <span>Unveiled Assembly<br>of Christ Jesus</span>
       </div>
-      <div class="portal-switch" aria-label="Preview portal perspectives">
-        <button class="active" type="button" data-portal-target="prospect">Prospect View</button>
-        <button type="button" data-portal-target="member">Member View</button>
-        <button type="button" data-portal-target="owner">Your Ministry View</button>
+      <div class="portal-switch" aria-label="My Assembly navigation">
+        <button class="active" type="button" data-portal-target="prospect" id="tabProspect">Sign In</button>
+        <button type="button" data-portal-target="member" id="tabMember" hidden>My Assembly</button>
+        <button type="button" data-portal-target="owner" id="tabOwner" hidden>Ministry View</button>
       </div>
-      <button class="portal-close" id="closeMemberPortal" type="button" aria-label="Close My Assembly preview">×</button>
+      <button class="portal-close" id="closeMemberPortal" type="button" aria-label="Close My Assembly">×</button>
     </div>
 
     <div class="portal-view" data-portal-view="prospect">
@@ -677,18 +677,23 @@
           <p>Students and ministry participants use one private account.</p>
           <form id="portalLoginForm">
             <div class="portal-field">
+              <label for="portalName">Full name <span style="text-transform:none;letter-spacing:0;color:#8a807a">(only needed when creating an account)</span></label>
+              <input id="portalName" type="text" placeholder="First and last name" autocomplete="name" />
+            </div>
+            <div class="portal-field">
               <label for="portalEmail">Email address</label>
-              <input id="portalEmail" type="email" placeholder="you@example.com" required />
+              <input id="portalEmail" type="email" placeholder="you@example.com" autocomplete="email" required />
             </div>
             <div class="portal-field">
               <label for="portalPassword">Password</label>
-              <input id="portalPassword" type="password" placeholder="Enter your password" required />
+              <input id="portalPassword" type="password" placeholder="Enter your password" autocomplete="current-password" minlength="6" required />
             </div>
             <div class="portal-actions">
-              <button class="portal-primary" type="submit">Sign In</button>
+              <button class="portal-primary" type="submit" id="portalSignInBtn">Sign In</button>
               <button class="portal-secondary" id="portalCreateAccount" type="button">Create an Account</button>
             </div>
           </form>
+          <div class="portal-status" id="portalLoginStatus" role="status" aria-live="polite"></div>
           <div class="portal-open-note">No account is needed to browse the website, give, request prayer, submit a testimony, or book an initial session.</div>
         </div>
       </div>
@@ -698,38 +703,29 @@
       <div class="portal-head">
         <div>
           <div class="kicker on-light">My Assembly</div>
-          <h3>Welcome back.</h3>
-          <p>Your classes, appointments, and ministry resources in one place.</p>
+          <h3>Welcome back<span id="memberWelcomeName"></span>.</h3>
+          <p>Your bookings and ministry resources in one place.</p>
         </div>
-        <span class="portal-account">Student Account</span>
+        <span class="portal-account" id="memberAccountLabel">Student Account</span>
       </div>
       <div class="portal-dashboard-grid">
         <article class="portal-panel wine">
-          <span class="portal-label">Next Live Class</span>
-          <h4>Discernment Class</h4>
-          <div class="portal-time">Saturday · 7:00 PM ET</div>
-          <p>Your private Zoom link appears here after enrollment and payment are confirmed.</p>
+          <span class="portal-label">My Bookings</span>
+          <div id="memberBookingsList">
+            <p style="color:#e0cdcf">Loading your bookings…</p>
+          </div>
           <div class="portal-inline-actions">
-            <button class="portal-primary portal-member-action" type="button" data-message="Zoom-room preview opened.">Join Zoom Room</button>
-            <button class="portal-secondary portal-member-action" type="button" data-message="Class added to the calendar preview.">Add to Calendar</button>
+            <button class="portal-primary" type="button" id="memberBookNew">Book A Session</button>
           </div>
         </article>
         <article class="portal-panel">
-          <span class="portal-label">My Bookings</span>
-          <div class="portal-row"><div><strong>30-Minute One-on-One</strong><small>Tuesday · 2:30 PM ET</small></div><span class="portal-access">Confirmed</span></div>
-          <div class="portal-row"><div><strong>Corporate Prayer</strong><small>Thursday · 8:00 PM ET</small></div><span class="portal-access">Free</span></div>
+          <span class="portal-label">Classes &amp; Materials</span>
+          <p style="color:#6d645d">Class scheduling, Zoom links, and materials aren't connected yet — this is next on the build list. Your live bookings above are fully real.</p>
         </article>
         <article class="portal-panel">
-          <span class="portal-label">Class Materials</span>
-          <div class="portal-row"><div><strong>Discernment Workbook</strong><small>PDF study guide</small></div><span class="portal-access">Available</span></div>
-          <div class="portal-row"><div><strong>Scripture Guide</strong><small>Class preparation</small></div><span class="portal-access">Available</span></div>
-          <div class="portal-row"><div><strong>Class Recording</strong><small>Posted after the session</small></div><span class="portal-access">Upcoming</span></div>
-        </article>
-        <article class="portal-panel">
-          <span class="portal-label">My Learning</span>
-          <h4>Ephesians Overview</h4>
-          <p>This free program can hold videos, Scripture readings, reflection questions, and completed lessons.</p>
-          <button class="portal-secondary portal-member-action" type="button" data-message="Learning-program preview opened.">Continue Learning</button>
+          <span class="portal-label">Account</span>
+          <div class="portal-row"><div><strong>Signed in as</strong><small id="memberAccountEmail">—</small></div></div>
+          <button class="portal-secondary" type="button" id="memberSignOut" style="margin-top:16px">Sign Out</button>
         </article>
       </div>
       <div class="portal-status" id="portalMemberStatus" role="status" aria-live="polite"></div>
@@ -740,47 +736,35 @@
         <div>
           <div class="kicker on-light">My Assembly Administration</div>
           <h3>Ministry Portal</h3>
-          <p>Approve people, manage access, and publish what each class needs.</p>
+          <p>Approve bookings and see who has created an account.</p>
         </div>
         <span class="portal-account">Private Owner View</span>
       </div>
       <div class="portal-owner-grid">
-        <article class="portal-panel">
-          <span class="portal-label">Pending Member Requests</span>
-          <div class="portal-request">
-            <div><strong>Sample class participant</strong><p>Requested Discernment Class access</p></div>
-            <button class="portal-secondary portal-approve" type="button">Approve</button>
-          </div>
-          <div class="portal-request">
-            <div><strong>Sample ministry participant</strong><p>Requested prayer-community access</p></div>
-            <button class="portal-secondary portal-approve" type="button">Approve</button>
+        <article class="portal-panel wine">
+          <span class="portal-label">Pending Booking Requests</span>
+          <div id="ownerBookingsList">
+            <p style="color:#e0cdcf">Loading booking requests…</p>
           </div>
         </article>
         <article class="portal-panel">
-          <span class="portal-label">Upcoming Class Controls</span>
-          <h4>Discernment Class</h4>
-          <p>Prepare the private student experience before the next class.</p>
-          <div class="portal-inline-actions">
-            <button class="portal-primary portal-owner-action" type="button" data-message="Zoom link marked ready for enrolled students.">Publish Zoom Link</button>
-            <button class="portal-secondary portal-owner-action" type="button" data-message="Recording-upload preview opened.">Add Recording</button>
+          <span class="portal-label">Member Accounts</span>
+          <div id="ownerMembersList">
+            <p style="color:#6d645d">Loading member accounts…</p>
           </div>
         </article>
         <article class="portal-panel">
-          <span class="portal-label">Content Access</span>
-          <div class="portal-row"><div><strong>Ephesians Overview</strong><small>Public enrollment</small></div><span class="portal-access">Free</span></div>
-          <div class="portal-row"><div><strong>Discernment Class</strong><small>Enrolled students only</small></div><span class="portal-access">$50</span></div>
-          <div class="portal-row"><div><strong>Class Recordings</strong><small>Specific class members</small></div><span class="portal-access">Private</span></div>
+          <span class="portal-label">Classes &amp; Materials</span>
+          <p style="color:#6d645d">Publishing Zoom links, materials, and class recordings isn't connected yet — this panel is next on the build list.</p>
         </article>
         <article class="portal-panel">
-          <span class="portal-label">What You Control</span>
-          <div class="portal-row"><strong>Approve member access</strong><span class="portal-access">You Decide</span></div>
-          <div class="portal-row"><strong>Assign classes and plans</strong><span class="portal-access">You Decide</span></div>
-          <div class="portal-row"><strong>Post links and materials</strong><span class="portal-access">You Decide</span></div>
-          <div class="portal-row"><strong>Publish testimonials</strong><span class="portal-access">You Decide</span></div>
+          <span class="portal-label">Account</span>
+          <div class="portal-row"><div><strong>Signed in as</strong><small id="ownerAccountEmail">—</small></div></div>
+          <button class="portal-secondary" type="button" id="ownerSignOut" style="margin-top:16px">Sign Out</button>
         </article>
       </div>
       <div class="portal-status" id="portalOwnerStatus" role="status" aria-live="polite"></div>
-      <div class="portal-mockup-note">Your ministry view would remain private and would never appear to regular website visitors.</div>
+      <div class="portal-mockup-note">This ministry view only appears to accounts marked as admin in the database, and is enforced by Firestore security rules — not just hidden in the page.</div>
     </div>
   </dialog>
 
@@ -793,7 +777,7 @@
       <button class="booking-close" id="closeBooking" type="button" aria-label="Close scheduling">×</button>
     </div>
     <div class="booking-body">
-      <p class="booking-intro">Book directly through The Assembly’s regular website schedule. Available dates and times will come from the live Wix calendar.</p>
+      <p class="booking-intro">Choose a date and an open time below. Sessions are held Tuesdays &amp; Thursdays, 2:00–6:00 PM ET. Your request is sent for confirmation — you'll be contacted at the email you provide.</p>
       <form id="bookingForm">
         <div class="booking-options" aria-label="Choose a one-on-one service">
           <label class="booking-option">
@@ -807,36 +791,29 @@
         </div>
         <div class="booking-grid">
           <div class="booking-field">
-            <label for="bookingDate">Choose a date</label>
+            <label for="bookingDate">Choose a date (Tue or Thu)</label>
             <input id="bookingDate" name="date" type="date" required />
           </div>
           <div class="booking-field">
             <label for="bookingTime">Choose an available time</label>
-            <select id="bookingTime" name="time" required>
-              <option value="">Times from the Wix calendar appear here</option>
-              <option value="preview">Preview available time</option>
+            <select id="bookingTime" name="time" required disabled>
+              <option value="">Choose a date first</option>
             </select>
           </div>
           <div class="booking-field">
             <label for="bookingName">Your name</label>
-            <input id="bookingName" name="name" type="text" placeholder="First and last name" required />
+            <input id="bookingName" name="name" type="text" placeholder="First and last name" autocomplete="name" required />
           </div>
           <div class="booking-field">
             <label for="bookingEmail">Email address</label>
-            <input id="bookingEmail" name="email" type="email" placeholder="For confirmation and reminders" required />
-          </div>
-          <div class="booking-field full">
-            <label class="booking-account">
-              <input type="checkbox" name="createAccount" />
-              <span>Create a My Assembly account so I can manage this booking, access private links, and see future sessions.</span>
-            </label>
+            <input id="bookingEmail" name="email" type="email" placeholder="For confirmation and reminders" autocomplete="email" required />
           </div>
         </div>
         <div class="booking-actions">
-          <button class="btn" type="submit">Continue to Booking</button>
+          <button class="btn" type="submit" id="bookingSubmitBtn">Request This Time</button>
           <div class="booking-status" id="bookingStatus" role="status" aria-live="polite"></div>
         </div>
-        <div class="booking-note">Scheduling mockup: the live Wix version will show real availability, collect payment when required, and automatically send the confirmation details.</div>
+        <div class="booking-note">Booking requests are held as pending until confirmed by The Assembly. This does not yet collect payment.</div>
       </form>
     </div>
   </dialog>
@@ -1027,7 +1004,35 @@
     </div>
   </footer>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+    import {
+      getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+      onAuthStateChanged, signOut, updateProfile
+    } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+    import {
+      getFirestore, doc, setDoc, getDoc, collection, query, where,
+      getDocs, updateDoc, deleteDoc, serverTimestamp, runTransaction
+    } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBn7fbRhrTXcgeUrfiQjWZh0YDMg5Kr57Y",
+      authDomain: "unveiledassembly.firebaseapp.com",
+      projectId: "unveiledassembly",
+      storageBucket: "unveiledassembly.firebasestorage.app",
+      messagingSenderId: "566883024840",
+      appId: "1:566883024840:web:69c1a65e3bfede28a04afd"
+    };
+    const ADMIN_EMAIL = 'contactunveiledassembly@gmail.com';
+
+    const fbApp = initializeApp(firebaseConfig);
+    const auth = getAuth(fbApp);
+    const db = getFirestore(fbApp);
+
+    let currentUser = null;
+    let currentProfile = null;
+
+    // ---- Nav / mobile menu ----
     const nav = document.getElementById('nav');
     const btn = document.getElementById('menuBtn');
     const links = document.getElementById('links');
@@ -1042,15 +1047,10 @@
       btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
       btn.setAttribute('aria-label', isOpen ? 'Close menu' : 'Open menu');
     }
+    btn.addEventListener('click', () => setMenuOpen(!nav.classList.contains('open')));
+    links.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setMenuOpen(false)));
 
-    btn.addEventListener('click', () => {
-      setMenuOpen(!nav.classList.contains('open'));
-    });
-
-    links.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
-      setMenuOpen(false);
-    }));
-
+    // ---- Story / testimony dialog (not connected to storage — out of scope for this pass) ----
     const storyDialog = document.getElementById('storyDialog');
     const openStoryForm = document.getElementById('openStoryForm');
     const closeStoryForm = document.getElementById('closeStoryForm');
@@ -1062,104 +1062,434 @@
     storyDialog.addEventListener('click', event => {
       if(event.target === storyDialog) storyDialog.close();
     });
-    storyDialog.addEventListener('close', () => {
-      formStatus.textContent = '';
-    });
+    storyDialog.addEventListener('close', () => { formStatus.textContent = ''; });
     testimonyForm.addEventListener('submit', event => {
       event.preventDefault();
-      formStatus.textContent = 'Mockup complete — on the live Wix site, this would now enter your private review area for approval.';
+      formStatus.textContent = "Thank you — this form isn't wired to storage yet, so nothing was saved. Please email your story to contactunveiledassembly@gmail.com for now.";
     });
 
+    // ---- Helpers ----
+    function escapeHtml(str){
+      return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+    function minutesToLabel(mins){
+      const h24 = Math.floor(mins / 60);
+      const m = mins % 60;
+      const period = h24 >= 12 ? 'PM' : 'AM';
+      let h12 = h24 % 12; if(h12 === 0) h12 = 12;
+      return h12 + ':' + String(m).padStart(2, '0') + ' ' + period;
+    }
+    function minutesToHHMM(mins){
+      return String(Math.floor(mins / 60)).padStart(2, '0') + ':' + String(mins % 60).padStart(2, '0');
+    }
+    function hhmmToMinutes(hhmm){
+      const [h, m] = hhmm.split(':').map(Number);
+      return h * 60 + m;
+    }
+    function friendlyAuthError(err){
+      const code = (err && err.code) || '';
+      if(code.includes('wrong-password') || code.includes('invalid-credential')) return 'Incorrect email or password.';
+      if(code.includes('user-not-found')) return 'No account found with that email — try Create an Account instead.';
+      if(code.includes('email-already-in-use')) return 'An account with this email already exists — try signing in instead.';
+      if(code.includes('weak-password')) return 'Password should be at least 6 characters.';
+      if(code.includes('invalid-email')) return 'Enter a valid email address.';
+      if(code.includes('too-many-requests')) return 'Too many attempts — please wait a moment and try again.';
+      return 'Something went wrong. Please try again.';
+    }
+
+    // ---- Member portal dialog ----
     const memberPortalDialog = document.getElementById('memberPortalDialog');
     const openMemberPortal = document.getElementById('openMemberPortal');
     const navMemberPortal = document.getElementById('navMemberPortal');
     const closeMemberPortal = document.getElementById('closeMemberPortal');
-    const portalSwitches = memberPortalDialog.querySelectorAll('[data-portal-target]');
     const portalViews = memberPortalDialog.querySelectorAll('[data-portal-view]');
+    const tabProspect = document.getElementById('tabProspect');
+    const tabMember = document.getElementById('tabMember');
+    const tabOwner = document.getElementById('tabOwner');
+    const portalTabs = [tabProspect, tabMember, tabOwner];
     const portalMemberStatus = document.getElementById('portalMemberStatus');
     const portalOwnerStatus = document.getElementById('portalOwnerStatus');
+    const portalLoginStatus = document.getElementById('portalLoginStatus');
+    const portalLoginForm = document.getElementById('portalLoginForm');
+    const portalNameInput = document.getElementById('portalName');
+    const portalEmailInput = document.getElementById('portalEmail');
+    const portalPasswordInput = document.getElementById('portalPassword');
+    const portalSignInBtn = document.getElementById('portalSignInBtn');
+    const portalCreateAccountBtn = document.getElementById('portalCreateAccount');
 
     function showPortalView(name){
-      portalViews.forEach(view => {
-        view.hidden = view.dataset.portalView !== name;
-      });
-      portalSwitches.forEach(switchButton => {
-        const selected = switchButton.dataset.portalTarget === name;
-        switchButton.classList.toggle('active', selected);
-        switchButton.setAttribute('aria-pressed', selected ? 'true' : 'false');
+      portalViews.forEach(view => { view.hidden = view.dataset.portalView !== name; });
+      portalTabs.forEach(tabButton => {
+        if(!tabButton) return;
+        const selected = tabButton.dataset.portalTarget === name;
+        tabButton.classList.toggle('active', selected);
+        tabButton.setAttribute('aria-pressed', selected ? 'true' : 'false');
       });
     }
 
-    function openPortalPreview(){
-      showPortalView('prospect');
+    function refreshPortalTabs(){
+      if(currentUser && currentProfile){
+        tabProspect.hidden = true;
+        tabMember.hidden = false;
+        tabOwner.hidden = currentProfile.role !== 'admin';
+      } else {
+        tabProspect.hidden = false;
+        tabMember.hidden = true;
+        tabOwner.hidden = true;
+      }
+    }
+
+    function openPortal(){
       setMenuOpen(false);
+      refreshPortalTabs();
+      if(currentUser && currentProfile){
+        showPortalView(currentProfile.role === 'admin' ? 'owner' : 'member');
+        loadMemberBookings();
+        if(currentProfile.role === 'admin') loadOwnerData();
+      } else {
+        showPortalView('prospect');
+      }
       memberPortalDialog.showModal();
     }
-    openMemberPortal.addEventListener('click', openPortalPreview);
-    navMemberPortal.addEventListener('click', openPortalPreview);
+    openMemberPortal.addEventListener('click', openPortal);
+    navMemberPortal.addEventListener('click', openPortal);
     closeMemberPortal.addEventListener('click', () => memberPortalDialog.close());
     memberPortalDialog.addEventListener('click', event => {
       if(event.target === memberPortalDialog) memberPortalDialog.close();
     });
-    portalSwitches.forEach(switchButton => {
-      switchButton.addEventListener('click', () => showPortalView(switchButton.dataset.portalTarget));
+    portalTabs.forEach(tabButton => {
+      if(!tabButton) return;
+      tabButton.addEventListener('click', () => {
+        showPortalView(tabButton.dataset.portalTarget);
+        if(tabButton.dataset.portalTarget === 'member') loadMemberBookings();
+        if(tabButton.dataset.portalTarget === 'owner') loadOwnerData();
+      });
     });
-    document.getElementById('portalLoginForm').addEventListener('submit', event => {
+
+    portalLoginForm.addEventListener('submit', async event => {
       event.preventDefault();
-      showPortalView('member');
-      portalMemberStatus.textContent = 'Signed-in member preview.';
+      portalLoginStatus.textContent = 'Signing in…';
+      portalSignInBtn.disabled = true;
+      try {
+        await signInWithEmailAndPassword(auth, portalEmailInput.value.trim(), portalPasswordInput.value);
+        portalLoginStatus.textContent = '';
+        portalLoginForm.reset();
+      } catch (err) {
+        portalLoginStatus.textContent = friendlyAuthError(err);
+      } finally {
+        portalSignInBtn.disabled = false;
+      }
     });
-    document.getElementById('portalCreateAccount').addEventListener('click', () => {
-      showPortalView('member');
-      portalMemberStatus.textContent = 'New-member dashboard preview.';
+
+    portalCreateAccountBtn.addEventListener('click', async () => {
+      const name = portalNameInput.value.trim();
+      const email = portalEmailInput.value.trim();
+      const password = portalPasswordInput.value;
+      if(!name){ portalLoginStatus.textContent = 'Enter your full name to create an account.'; portalNameInput.focus(); return; }
+      if(!email || !password){ portalLoginStatus.textContent = 'Enter an email and password to create an account.'; return; }
+      if(password.length < 6){ portalLoginStatus.textContent = 'Password should be at least 6 characters.'; return; }
+      portalLoginStatus.textContent = 'Creating your account…';
+      portalCreateAccountBtn.disabled = true;
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(cred.user, { displayName: name });
+        const role = email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'member';
+        await setDoc(doc(db, 'users', cred.user.uid), { name, email, role, createdAt: serverTimestamp() });
+        portalLoginStatus.textContent = '';
+        portalLoginForm.reset();
+      } catch (err) {
+        portalLoginStatus.textContent = friendlyAuthError(err);
+      } finally {
+        portalCreateAccountBtn.disabled = false;
+      }
     });
-    memberPortalDialog.querySelectorAll('.portal-member-action').forEach(action => {
-      action.addEventListener('click', () => {
-        portalMemberStatus.textContent = action.dataset.message;
-      });
+
+    document.getElementById('memberSignOut').addEventListener('click', () => signOut(auth));
+    document.getElementById('ownerSignOut').addEventListener('click', () => signOut(auth));
+    document.getElementById('memberBookNew').addEventListener('click', () => {
+      memberPortalDialog.close();
+      openBooking('30-minute');
     });
-    memberPortalDialog.querySelectorAll('.portal-approve').forEach(action => {
-      action.addEventListener('click', () => {
-        action.textContent = 'Approved';
-        action.disabled = true;
-        portalOwnerStatus.textContent = 'Sample member access approved.';
-      });
-    });
-    memberPortalDialog.querySelectorAll('.portal-owner-action').forEach(action => {
-      action.addEventListener('click', () => {
-        portalOwnerStatus.textContent = action.dataset.message;
-      });
-    });
+
+    // ---- Booking: availability + Firestore-backed scheduling ----
+    // Real business hours — edit these three lines to change them.
+    const AVAILABILITY_DAYS = [2, 4]; // Tue, Thu (Sunday = 0)
+    const AVAILABILITY_START_MIN = 14 * 60; // 2:00 PM
+    const AVAILABILITY_END_MIN = 18 * 60;   // 6:00 PM
+    const SESSION_MINUTES = { '30-minute': 30, '15-minute': 15 };
 
     const bookingDialog = document.getElementById('bookingDialog');
     const closeBooking = document.getElementById('closeBooking');
     const bookingForm = document.getElementById('bookingForm');
     const bookingStatus = document.getElementById('bookingStatus');
+    const bookingSubmitBtn = document.getElementById('bookingSubmitBtn');
+    const bookingDateInput = document.getElementById('bookingDate');
+    const bookingTimeSelect = document.getElementById('bookingTime');
     const bookingTriggers = document.querySelectorAll('.book-session');
 
-    bookingTriggers.forEach(trigger => {
-      trigger.addEventListener('click', () => {
-        const selectedService = trigger.dataset.service;
-        const serviceChoice = bookingForm.querySelector('input[name="sessionType"][value="' + selectedService + '"]');
-        if(serviceChoice) serviceChoice.checked = true;
-        bookingStatus.textContent = '';
-        bookingDialog.showModal();
+    bookingDateInput.min = new Date().toISOString().slice(0, 10);
+
+    async function bookedIntervalsForDate(dateStr){
+      const snap = await getDocs(query(collection(db, 'bookings'), where('date', '==', dateStr)));
+      const intervals = [];
+      snap.forEach(docSnap => {
+        const b = docSnap.data();
+        if(b.status === 'declined') return;
+        const start = hhmmToMinutes(b.time);
+        const dur = SESSION_MINUTES[b.sessionType] || 30;
+        intervals.push([start, start + dur]);
       });
+      return intervals;
+    }
+
+    async function loadTimeSlots(){
+      const dateStr = bookingDateInput.value;
+      bookingTimeSelect.innerHTML = '';
+      bookingTimeSelect.disabled = true;
+      if(!dateStr){
+        bookingTimeSelect.appendChild(new Option('Choose a date first', ''));
+        return;
+      }
+      const weekday = new Date(dateStr + 'T12:00:00').getDay();
+      if(!AVAILABILITY_DAYS.includes(weekday)){
+        bookingTimeSelect.appendChild(new Option('No sessions on that day — pick a Tue or Thu', ''));
+        return;
+      }
+      const service = bookingForm.querySelector('input[name="sessionType"]:checked').value;
+      const duration = SESSION_MINUTES[service];
+      bookingTimeSelect.appendChild(new Option('Loading available times…', ''));
+      let booked;
+      try {
+        booked = await bookedIntervalsForDate(dateStr);
+      } catch (err) {
+        bookingTimeSelect.innerHTML = '';
+        bookingTimeSelect.appendChild(new Option('Could not load availability — try again', ''));
+        return;
+      }
+      const openStarts = [];
+      for(let start = AVAILABILITY_START_MIN; start + duration <= AVAILABILITY_END_MIN; start += duration){
+        const end = start + duration;
+        const overlaps = booked.some(([bStart, bEnd]) => start < bEnd && end > bStart);
+        if(!overlaps) openStarts.push(start);
+      }
+      bookingTimeSelect.innerHTML = '';
+      if(openStarts.length === 0){
+        bookingTimeSelect.appendChild(new Option('No open times on that date', ''));
+        return;
+      }
+      bookingTimeSelect.appendChild(new Option('Choose a time', ''));
+      openStarts.forEach(start => bookingTimeSelect.appendChild(new Option(minutesToLabel(start), minutesToHHMM(start))));
+      bookingTimeSelect.disabled = false;
+    }
+
+    function openBooking(service){
+      bookingForm.reset();
+      bookingStatus.textContent = '';
+      if(service){
+        const serviceChoice = bookingForm.querySelector('input[name="sessionType"][value="' + service + '"]');
+        if(serviceChoice) serviceChoice.checked = true;
+      }
+      if(currentUser && currentProfile){
+        document.getElementById('bookingName').value = currentProfile.name || '';
+        document.getElementById('bookingEmail').value = currentProfile.email || '';
+      }
+      loadTimeSlots();
+      bookingDialog.showModal();
+    }
+
+    bookingTriggers.forEach(trigger => {
+      trigger.addEventListener('click', () => openBooking(trigger.dataset.service));
     });
     closeBooking.addEventListener('click', () => bookingDialog.close());
     bookingDialog.addEventListener('click', event => {
       if(event.target === bookingDialog) bookingDialog.close();
     });
-    bookingForm.addEventListener('submit', event => {
-      event.preventDefault();
-      const service = bookingForm.querySelector('input[name="sessionType"]:checked').value;
-      const serviceLabel = service === '30-minute' ? '30-minute one-on-one' : '15-minute pop-up';
-      bookingStatus.textContent = serviceLabel + ' selected. On the live Wix site, the visitor would continue to payment and confirmation.';
+    bookingDateInput.addEventListener('change', loadTimeSlots);
+    bookingForm.querySelectorAll('input[name="sessionType"]').forEach(radio => {
+      radio.addEventListener('change', loadTimeSlots);
     });
 
-    const bookingDateInput = document.getElementById('bookingDate');
-    if(bookingDateInput) bookingDateInput.min = new Date().toISOString().slice(0, 10);
+    bookingForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const service = bookingForm.querySelector('input[name="sessionType"]:checked').value;
+      const dateStr = bookingDateInput.value;
+      const time = bookingTimeSelect.value;
+      const name = document.getElementById('bookingName').value.trim();
+      const email = document.getElementById('bookingEmail').value.trim();
+      if(!dateStr || !time){
+        bookingStatus.textContent = 'Choose a date and an available time.';
+        return;
+      }
+      bookingSubmitBtn.disabled = true;
+      bookingStatus.textContent = 'Requesting your session…';
+      const slotId = dateStr + '_' + time;
+      try {
+        await runTransaction(db, async (tx) => {
+          const slotRef = doc(db, 'slots', slotId);
+          const slotSnap = await tx.get(slotRef);
+          if(slotSnap.exists()) throw new Error('slot-taken');
+          tx.set(slotRef, { date: dateStr, time, sessionType: service, createdAt: serverTimestamp() });
+          const bookingRef = doc(collection(db, 'bookings'));
+          tx.set(bookingRef, {
+            slotId, date: dateStr, time, sessionType: service, name, email,
+            uid: currentUser ? currentUser.uid : null,
+            status: 'pending', createdAt: serverTimestamp()
+          });
+        });
+        bookingStatus.textContent = 'Request received — your ' + (service === '30-minute' ? '30-minute' : '15-minute') +
+          ' session on ' + dateStr + ' at ' + minutesToLabel(hhmmToMinutes(time)) + ' is pending confirmation. You will be contacted at ' + email + '.';
+        bookingForm.reset();
+        loadTimeSlots();
+        if(currentUser) loadMemberBookings();
+      } catch (err) {
+        if(err.message === 'slot-taken'){
+          bookingStatus.textContent = 'That time was just taken by someone else — pick another.';
+          loadTimeSlots();
+        } else {
+          bookingStatus.textContent = 'Could not submit your request. Please try again.';
+        }
+      } finally {
+        bookingSubmitBtn.disabled = false;
+      }
+    });
 
+    // ---- Member dashboard: real bookings ----
+    async function loadMemberBookings(){
+      const container = document.getElementById('memberBookingsList');
+      if(!currentUser){ container.innerHTML = ''; return; }
+      container.innerHTML = '<p style="color:#e0cdcf">Loading your bookings…</p>';
+      try {
+        const snap = await getDocs(query(collection(db, 'bookings'), where('uid', '==', currentUser.uid)));
+        if(snap.empty){
+          container.innerHTML = '<p style="color:#e0cdcf">No bookings yet — request a session below.</p>';
+          return;
+        }
+        const rows = [];
+        snap.forEach(docSnap => rows.push(docSnap.data()));
+        rows.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+        container.innerHTML = rows.map(b => {
+          const label = b.sessionType === '30-minute' ? '30-Minute One-on-One' : '15-Minute Pop-Up';
+          const statusLabel = b.status === 'confirmed' ? 'Confirmed' : b.status === 'declined' ? 'Declined' : 'Pending';
+          return '<div class="portal-row"><div><strong>' + escapeHtml(label) + '</strong><small>' +
+            escapeHtml(b.date) + ' · ' + escapeHtml(minutesToLabel(hhmmToMinutes(b.time))) + ' ET</small></div><span class="portal-access">' +
+            statusLabel + '</span></div>';
+        }).join('');
+      } catch (err) {
+        container.innerHTML = '<p style="color:#e0cdcf">Could not load your bookings.</p>';
+      }
+    }
+
+    // ---- Ministry (admin) view: real pending bookings + member roster ----
+    async function loadOwnerData(){
+      if(!currentProfile || currentProfile.role !== 'admin') return;
+      await Promise.all([loadOwnerBookings(), loadOwnerMembers()]);
+    }
+
+    async function loadOwnerBookings(){
+      const container = document.getElementById('ownerBookingsList');
+      container.innerHTML = '<p style="color:#e0cdcf">Loading booking requests…</p>';
+      try {
+        const snap = await getDocs(query(collection(db, 'bookings'), where('status', '==', 'pending')));
+        if(snap.empty){
+          container.innerHTML = '<p style="color:#e0cdcf">No pending booking requests.</p>';
+          return;
+        }
+        const items = [];
+        snap.forEach(docSnap => items.push({ id: docSnap.id, ...docSnap.data() }));
+        items.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+        container.innerHTML = items.map(b => {
+          const label = b.sessionType === '30-minute' ? '30-Minute One-on-One' : '15-Minute Pop-Up';
+          return '<div class="portal-request" data-booking-id="' + b.id + '" data-slot-id="' + escapeHtml(b.slotId || '') + '">' +
+            '<div><strong>' + escapeHtml(b.name) + '</strong><p>' + escapeHtml(label) + ' · ' + escapeHtml(b.date) + ' · ' +
+            escapeHtml(minutesToLabel(hhmmToMinutes(b.time))) + ' ET · ' + escapeHtml(b.email) + '</p></div>' +
+            '<div class="portal-inline-actions">' +
+            '<button class="portal-secondary owner-confirm-booking" type="button">Confirm</button>' +
+            '<button class="portal-secondary owner-decline-booking" type="button">Decline</button>' +
+            '</div></div>';
+        }).join('');
+      } catch (err) {
+        container.innerHTML = '<p style="color:#e0cdcf">Could not load booking requests.</p>';
+      }
+    }
+
+    document.getElementById('ownerBookingsList').addEventListener('click', async event => {
+      const confirmBtn = event.target.closest('.owner-confirm-booking');
+      const declineBtn = event.target.closest('.owner-decline-booking');
+      if(!confirmBtn && !declineBtn) return;
+      const row = event.target.closest('[data-booking-id]');
+      const bookingId = row.dataset.bookingId;
+      const slotId = row.dataset.slotId;
+      event.target.disabled = true;
+      try {
+        if(confirmBtn){
+          await updateDoc(doc(db, 'bookings', bookingId), { status: 'confirmed' });
+          portalOwnerStatus.textContent = 'Booking confirmed.';
+        } else {
+          await updateDoc(doc(db, 'bookings', bookingId), { status: 'declined' });
+          if(slotId) await deleteDoc(doc(db, 'slots', slotId));
+          portalOwnerStatus.textContent = 'Booking declined and the time was freed up.';
+        }
+        loadOwnerBookings();
+      } catch (err) {
+        portalOwnerStatus.textContent = 'Could not update that booking.';
+        event.target.disabled = false;
+      }
+    });
+
+    async function loadOwnerMembers(){
+      const container = document.getElementById('ownerMembersList');
+      container.innerHTML = '<p style="color:#6d645d">Loading member accounts…</p>';
+      try {
+        const snap = await getDocs(collection(db, 'users'));
+        if(snap.empty){
+          container.innerHTML = '<p style="color:#6d645d">No member accounts yet.</p>';
+          return;
+        }
+        const items = [];
+        snap.forEach(docSnap => items.push(docSnap.data()));
+        items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        container.innerHTML = items.map(u =>
+          '<div class="portal-row"><div><strong>' + escapeHtml(u.name || u.email) + '</strong><small>' + escapeHtml(u.email) +
+          '</small></div><span class="portal-access">' + (u.role === 'admin' ? 'Admin' : 'Member') + '</span></div>'
+        ).join('');
+      } catch (err) {
+        container.innerHTML = '<p style="color:#6d645d">Could not load member accounts.</p>';
+      }
+    }
+
+    // ---- Auth state ----
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user;
+      if(user){
+        try {
+          const profileSnap = await getDoc(doc(db, 'users', user.uid));
+          currentProfile = profileSnap.exists() ? profileSnap.data() : { name: user.displayName || '', email: user.email, role: 'member' };
+        } catch (err) {
+          currentProfile = { name: user.displayName || '', email: user.email, role: 'member' };
+        }
+        navMemberPortal.textContent = currentProfile.role === 'admin' ? 'Ministry' : 'My Assembly';
+        document.getElementById('memberWelcomeName').textContent = currentProfile.name ? ', ' + currentProfile.name.split(' ')[0] : '';
+        document.getElementById('memberAccountLabel').textContent = currentProfile.role === 'admin' ? 'Admin Account' : 'Student Account';
+        document.getElementById('memberAccountEmail').textContent = currentProfile.email || user.email;
+        const ownerEmailEl = document.getElementById('ownerAccountEmail');
+        if(ownerEmailEl) ownerEmailEl.textContent = currentProfile.email || user.email;
+      } else {
+        currentProfile = null;
+        navMemberPortal.textContent = 'Login';
+      }
+      refreshPortalTabs();
+      if(memberPortalDialog.open){
+        if(currentUser && currentProfile){
+          showPortalView(currentProfile.role === 'admin' ? 'owner' : 'member');
+          loadMemberBookings();
+          if(currentProfile.role === 'admin') loadOwnerData();
+        } else {
+          showPortalView('prospect');
+        }
+      }
+    });
+
+    // ---- Scroll reveal ----
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if(entry.isIntersecting) entry.target.classList.add('visible');
