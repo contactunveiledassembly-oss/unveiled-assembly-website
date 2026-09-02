@@ -36,11 +36,13 @@ service cloud.firestore {
 
     // Booking requests hold personal data (name/email), so only the admin
     // or the booker themself (if signed in) can read them back. Anyone can
-    // create one (guest booking is allowed), but it must start 'pending'.
+    // create one (guest booking is allowed), but a non-admin's request must
+    // start 'pending' — only an admin can create one already 'confirmed'
+    // (used by the manual "Add An Appointment" panel in Ministry View).
     match /bookings/{bookingId} {
       allow create: if request.resource.data.keys().hasAll(
                         ['name','email','sessionType','date','time','status']) &&
-                      request.resource.data.status == 'pending';
+                      (request.resource.data.status == 'pending' || isAdmin());
       allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
       allow update: if isAdmin();
       allow delete: if isAdmin();
