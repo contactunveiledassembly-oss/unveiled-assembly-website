@@ -677,8 +677,8 @@
           <h4>Enter My Assembly</h4>
           <p>Students and ministry participants use one private account.</p>
           <form id="portalLoginForm">
-            <div class="portal-field">
-              <label for="portalName">Full name <span style="text-transform:none;letter-spacing:0;color:#8a807a">(only needed when creating an account)</span></label>
+            <div class="portal-field" id="portalNameField" hidden>
+              <label for="portalName">Full name</label>
               <input id="portalName" type="text" placeholder="First and last name" autocomplete="name" />
             </div>
             <div class="portal-field">
@@ -1278,6 +1278,7 @@
         await signInWithEmailAndPassword(auth, portalEmailInput.value.trim(), portalPasswordInput.value);
         portalLoginStatus.textContent = '';
         portalLoginForm.reset();
+        portalNameField.hidden = true;
       } catch (err) {
         portalLoginStatus.textContent = friendlyAuthError(err);
       } finally {
@@ -1285,7 +1286,14 @@
       }
     });
 
+    const portalNameField = document.getElementById('portalNameField');
     portalCreateAccountBtn.addEventListener('click', async () => {
+      if(portalNameField.hidden){
+        portalNameField.hidden = false;
+        portalNameInput.focus();
+        portalLoginStatus.textContent = 'Enter your name, then click Create an Account again.';
+        return;
+      }
       const name = portalNameInput.value.trim();
       const email = portalEmailInput.value.trim();
       const password = portalPasswordInput.value;
@@ -1301,6 +1309,7 @@
         await setDoc(doc(db, 'users', cred.user.uid), { name, email, role, createdAt: serverTimestamp() });
         portalLoginStatus.textContent = '';
         portalLoginForm.reset();
+        portalNameField.hidden = true;
       } catch (err) {
         portalLoginStatus.textContent = friendlyAuthError(err);
       } finally {
