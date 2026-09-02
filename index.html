@@ -755,6 +755,19 @@
           </div>
         </article>
         <article class="portal-panel">
+          <span class="portal-label">Block A Date</span>
+          <p style="color:#6d645d;margin-bottom:14px">Mark a date as unavailable (holidays, travel, etc). Blocked dates won't show any open times to visitors.</p>
+          <form id="blockDateForm" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <div class="form-field" style="flex:1;min-width:160px">
+              <label for="blockDateInput">Date</label>
+              <input id="blockDateInput" type="date" required style="background:#fffdf9;color:var(--ink);border-color:#c9bfb4" />
+            </div>
+            <button class="portal-secondary" type="submit" id="blockDateSubmitBtn">Block This Date</button>
+          </form>
+          <div class="form-status" id="blockDateStatus" style="color:#87535a;margin-top:8px"></div>
+          <div id="blockedDatesList" style="margin-top:14px"></div>
+        </article>
+        <article class="portal-panel">
           <span class="portal-label">Add An Appointment</span>
           <p style="color:#6d645d;margin-bottom:14px">Manually schedule someone (phone-in requests, etc). This books and confirms in one step.</p>
           <form id="adminBookForm">
@@ -823,6 +836,10 @@
     <div class="booking-body">
       <p class="booking-intro">Choose a date and an open time below. Sessions are held Tuesdays &amp; Thursdays, 2:00–6:00 PM ET. Your request is sent for confirmation — you'll be contacted at the email you provide.</p>
       <form id="bookingForm">
+        <div style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden" aria-hidden="true">
+          <label for="bookingWebsite">Leave this field blank</label>
+          <input id="bookingWebsite" name="website" type="text" tabindex="-1" autocomplete="off" />
+        </div>
         <div class="booking-options" aria-label="Choose a one-on-one service">
           <label class="booking-option">
             <input type="radio" name="sessionType" value="30-minute" checked />
@@ -1130,6 +1147,49 @@
       const [h, m] = hhmm.split(':').map(Number);
       return h * 60 + m;
     }
+
+    // Business hours are stored as ET wall-clock (date + minutes-since-midnight).
+    // This converts that ET wall-clock moment into a real UTC Date, correctly
+    // handling EST/EDT, so it can be displayed in each viewer's own timezone.
+    const BUSINESS_TZ = 'America/New_York';
+    function etWallTimeToDate(dateStr, minutes){
+      const [y, mo, d] = dateStr.split('-').map(Number);
+      const hh = Math.floor(minutes / 60), mm = minutes % 60;
+      let guess = new Date(Date.UTC(y, mo - 1, d, hh, mm));
+      for(let i = 0; i < 2; i++){
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: BUSINESS_TZ, hour12: false,
+          year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+        }).formatToParts(guess);
+        const map = {};
+        parts.forEach(p => { map[p.type] = p.value; });
+        const hourVal = Number(map.hour) === 24 ? 0 : Number(map.hour);
+        const asIfET = Date.UTC(Number(map.year), Number(map.month) - 1, Number(map.day), hourVal, Number(map.minute));
+        const target = Date.UTC(y, mo - 1, d, hh, mm);
+        guess = new Date(guess.getTime() + (target - asIfET));
+      }
+      return guess;
+    }
+    // Formats a booking's stored date+time in the current viewer's local
+    // timezone (falls back gracefully if Intl throws for any reason).
+    function formatLocalDateTime(dateStr, hhmm){
+      try {
+        const d = etWallTimeToDate(dateStr, hhmmToMinutes(hhmm));
+        const datePart = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(d);
+        const timePart = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(d);
+        return datePart + ' · ' + timePart;
+      } catch (err) {
+        return dateStr + ' · ' + minutesToLabel(hhmmToMinutes(hhmm)) + ' ET';
+      }
+    }
+    function formatLocalTime(dateStr, hhmm){
+      try {
+        const d = etWallTimeToDate(dateStr, hhmmToMinutes(hhmm));
+        return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(d);
+      } catch (err) {
+        return minutesToLabel(hhmmToMinutes(hhmm)) + ' ET';
+      }
+    }
     function friendlyAuthError(err){
       const code = (err && err.code) || '';
       if(code.includes('wrong-password') || code.includes('invalid-credential')) return 'Incorrect email or password.';
@@ -1292,6 +1352,12 @@
       if(!dateStr) return { ok: false, reason: 'Choose a date first' };
       const weekday = new Date(dateStr + 'T12:00:00').getDay();
       if(!AVAILABILITY_DAYS.includes(weekday)) return { ok: false, reason: 'No sessions on that day — pick a Tue or Thu' };
+      try {
+        const blockSnap = await getDoc(doc(db, 'blockouts', dateStr));
+        if(blockSnap.exists()) return { ok: false, reason: 'Not available on that date — please choose another' };
+      } catch (err) {
+        // if the blockout check itself fails, fall through and still try to show availability
+      }
       let booked;
       try {
         booked = await bookedIntervalsForDate(dateStr);
@@ -1323,7 +1389,10 @@
         return;
       }
       selectEl.appendChild(new Option('Choose a time', ''));
-      result.openStarts.forEach(start => selectEl.appendChild(new Option(minutesToLabel(start), minutesToHHMM(start))));
+      result.openStarts.forEach(start => {
+        const hhmm = minutesToHHMM(start);
+        selectEl.appendChild(new Option(formatLocalTime(dateStr, hhmm) + ' (' + minutesToLabel(start) + ' ET)', hhmm));
+      });
       selectEl.disabled = false;
     }
 
@@ -1368,14 +1437,40 @@
         const slotRef = doc(db, 'slots', slotId);
         const slotSnap = await tx.get(slotRef);
         if(slotSnap.exists()) throw new Error('slot-taken');
-        tx.set(slotRef, { date, time, sessionType, createdAt: serverTimestamp() });
+        tx.set(slotRef, { date, time, sessionType, uid: uid || null, createdAt: serverTimestamp() });
         const bookingRef = doc(collection(db, 'bookings'));
         tx.set(bookingRef, { slotId, date, time, sessionType, name, email, uid: uid || null, status, createdAt: serverTimestamp() });
       });
     }
 
+    // Very lightweight, no-account-needed spam mitigation: a hidden honeypot
+    // field (bots tend to fill every field) plus a per-browser cooldown.
+    // This is not real bot protection — reCAPTCHA/App Check would need a
+    // site key from a Google account if stronger protection is ever wanted.
+    const BOOKING_COOLDOWN_MS = 60000;
+    function throttledRecently(storageKey){
+      try {
+        const last = Number(localStorage.getItem(storageKey) || 0);
+        return Date.now() - last < BOOKING_COOLDOWN_MS;
+      } catch (err) { return false; }
+    }
+    function markThrottled(storageKey){
+      try { localStorage.setItem(storageKey, String(Date.now())); } catch (err) { /* ignore */ }
+    }
+
     bookingForm.addEventListener('submit', async event => {
       event.preventDefault();
+      const honeypot = document.getElementById('bookingWebsite').value;
+      if(honeypot){
+        // Silently "succeed" for whatever filled the honeypot field — no real submission.
+        bookingStatus.textContent = 'Request received.';
+        bookingForm.reset();
+        return;
+      }
+      if(throttledRecently('lastBookingSubmit')){
+        bookingStatus.textContent = 'Please wait a moment before submitting another request.';
+        return;
+      }
       const service = bookingForm.querySelector('input[name="sessionType"]:checked').value;
       const dateStr = bookingDateInput.value;
       const time = bookingTimeSelect.value;
@@ -1392,8 +1487,9 @@
           name, email, sessionType: service, date: dateStr, time,
           status: 'pending', uid: currentUser ? currentUser.uid : null
         });
+        markThrottled('lastBookingSubmit');
         bookingStatus.textContent = 'Request received — your ' + (service === '30-minute' ? '30-minute' : '15-minute') +
-          ' session on ' + dateStr + ' at ' + minutesToLabel(hhmmToMinutes(time)) + ' is pending confirmation. You will be contacted at ' + email + '.';
+          ' session on ' + formatLocalDateTime(dateStr, time) + ' is pending confirmation. You will be contacted at ' + email + '.';
         bookingForm.reset();
         loadTimeSlots();
         if(currentUser) loadMemberBookings();
@@ -1466,24 +1562,75 @@
           return;
         }
         const rows = [];
-        snap.forEach(docSnap => rows.push(docSnap.data()));
+        snap.forEach(docSnap => rows.push({ id: docSnap.id, ...docSnap.data() }));
         rows.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+        const today = new Date().toISOString().slice(0, 10);
         container.innerHTML = rows.map(b => {
           const label = b.sessionType === '30-minute' ? '30-Minute One-on-One' : '15-Minute Pop-Up';
-          const statusLabel = b.status === 'confirmed' ? 'Confirmed' : b.status === 'declined' ? 'Declined' : 'Pending';
-          return '<div class="portal-row"><div><strong>' + escapeHtml(label) + '</strong><small>' +
-            escapeHtml(b.date) + ' · ' + escapeHtml(minutesToLabel(hhmmToMinutes(b.time))) + ' ET</small></div><span class="portal-access">' +
-            statusLabel + '</span></div>';
+          const statusLabel = b.status === 'confirmed' ? 'Confirmed' : b.status === 'declined' ? 'Declined' : b.status === 'cancelled' ? 'Cancelled' : 'Pending';
+          const canCancel = (b.status === 'pending' || b.status === 'confirmed') && b.date >= today;
+          return '<div class="portal-row" data-booking-id="' + b.id + '" data-slot-id="' + escapeHtml(b.slotId || '') + '" data-session-type="' + escapeHtml(b.sessionType) + '">' +
+            '<div><strong>' + escapeHtml(label) + '</strong><small>' + escapeHtml(formatLocalDateTime(b.date, b.time)) + '</small></div>' +
+            '<div style="display:flex;align-items:center;gap:10px">' +
+            '<span class="portal-access">' + statusLabel + '</span>' +
+            (canCancel ? '<button class="portal-secondary member-reschedule-booking" type="button" style="min-height:32px;padding:0 10px;font-size:9px">Reschedule</button>' +
+              '<button class="portal-secondary member-cancel-booking" type="button" style="min-height:32px;padding:0 10px;font-size:9px">Cancel</button>' : '') +
+            '</div></div>';
         }).join('');
       } catch (err) {
         container.innerHTML = '<p style="color:#e0cdcf">Could not load your bookings.</p>';
       }
     }
 
+    async function cancelOwnBooking(bookingId, slotId){
+      await updateDoc(doc(db, 'bookings', bookingId), { status: 'cancelled' });
+      if(slotId){
+        try { await deleteDoc(doc(db, 'slots', slotId)); } catch (err) { /* admin can clean up if this ever fails */ }
+      }
+    }
+
+    document.getElementById('memberBookingsList').addEventListener('click', async event => {
+      const cancelBtn = event.target.closest('.member-cancel-booking');
+      const reschedBtn = event.target.closest('.member-reschedule-booking');
+      if(!cancelBtn && !reschedBtn) return;
+      const row = event.target.closest('[data-booking-id]');
+      const bookingId = row.dataset.bookingId;
+      const slotId = row.dataset.slotId;
+      const sessionType = row.dataset.sessionType;
+      event.target.disabled = true;
+      try {
+        await cancelOwnBooking(bookingId, slotId);
+        loadMemberBookings();
+        if(reschedBtn){
+          memberPortalDialog.close();
+          openBooking(sessionType);
+          bookingStatus.textContent = 'Your old time was cancelled — pick a new one below.';
+        } else {
+          portalMemberStatus.textContent = 'Booking cancelled.';
+        }
+      } catch (err) {
+        portalMemberStatus.textContent = 'Could not update that booking.';
+        event.target.disabled = false;
+      }
+    });
+
     // ---- Ministry (admin) view: real pending bookings + member roster ----
     async function loadOwnerData(){
       if(!currentProfile || currentProfile.role !== 'admin') return;
-      await Promise.all([loadOwnerBookings(), loadOwnerConfirmed(), loadOwnerMembers()]);
+      await Promise.all([loadOwnerBookings(), loadOwnerConfirmed(), loadOwnerMembers(), loadBlockedDates()]);
+    }
+
+    async function rescheduleBooking(bookingId, oldSlotId, newDate, newTime, sessionType, uid){
+      const newSlotId = newDate + '_' + newTime;
+      if(newSlotId === oldSlotId) return;
+      await runTransaction(db, async (tx) => {
+        const newSlotRef = doc(db, 'slots', newSlotId);
+        const newSlotSnap = await tx.get(newSlotRef);
+        if(newSlotSnap.exists()) throw new Error('slot-taken');
+        if(oldSlotId) tx.delete(doc(db, 'slots', oldSlotId));
+        tx.set(newSlotRef, { date: newDate, time: newTime, sessionType, uid: uid || null, createdAt: serverTimestamp() });
+        tx.update(doc(db, 'bookings', bookingId), { date: newDate, time: newTime, slotId: newSlotId });
+      });
     }
 
     async function loadOwnerConfirmed(){
@@ -1496,7 +1643,7 @@
         const items = [];
         snap.forEach(docSnap => {
           const b = docSnap.data();
-          if(b.date >= today) items.push(b);
+          if(b.date >= today) items.push({ id: docSnap.id, ...b });
         });
         if(items.length === 0){
           container.innerHTML = '<p style="color:#6d645d">No upcoming confirmed appointments.</p>';
@@ -1505,14 +1652,57 @@
         items.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
         container.innerHTML = items.map(b => {
           const label = b.sessionType === '30-minute' ? '30-Minute One-on-One' : '15-Minute Pop-Up';
-          return '<div class="portal-row"><div><strong>' + escapeHtml(b.name) + '</strong><small>' +
-            escapeHtml(label) + ' · ' + escapeHtml(b.date) + ' · ' + escapeHtml(minutesToLabel(hhmmToMinutes(b.time))) +
-            ' ET · ' + escapeHtml(b.email) + '</small></div></div>';
+          return '<div class="portal-request" data-booking-id="' + b.id + '" data-slot-id="' + escapeHtml(b.slotId || '') +
+            '" data-uid="' + escapeHtml(b.uid || '') + '" data-session-type="' + escapeHtml(b.sessionType) + '">' +
+            '<div style="flex:1;min-width:0">' +
+            '<div style="display:flex;justify-content:space-between;gap:14px">' +
+            '<div><strong>' + escapeHtml(b.name) + '</strong><p>' + escapeHtml(label) + ' · ' + escapeHtml(formatLocalDateTime(b.date, b.time)) +
+            ' · ' + escapeHtml(b.email) + '</p></div>' +
+            '<button class="portal-secondary owner-reschedule-toggle" type="button" style="min-height:32px;padding:0 10px;font-size:9px;flex:0 0 auto">Reschedule</button>' +
+            '</div>' +
+            '<div class="owner-reschedule-panel" hidden style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed #d1c7bc">' +
+            '<div class="form-field" style="flex:1;min-width:140px"><label>New date</label><input type="date" class="owner-resched-date" style="background:#fffdf9;color:var(--ink);border-color:#c9bfb4" /></div>' +
+            '<div class="form-field" style="flex:1;min-width:160px"><label>New time</label><select class="owner-resched-time" disabled style="background:#fffdf9;color:var(--ink);border-color:#c9bfb4"><option value="">Choose a date first</option></select></div>' +
+            '<button class="portal-secondary owner-resched-save" type="button" style="min-height:32px;padding:0 10px;font-size:9px">Save</button>' +
+            '</div></div></div>';
         }).join('');
       } catch (err) {
         container.innerHTML = '<p style="color:#6d645d">Could not load appointments.</p>';
       }
     }
+
+    document.getElementById('ownerConfirmedList').addEventListener('change', async event => {
+      if(!event.target.classList.contains('owner-resched-date')) return;
+      const row = event.target.closest('[data-booking-id]');
+      const timeSelect = row.querySelector('.owner-resched-time');
+      await populateTimeSelect(timeSelect, event.target.value, SESSION_MINUTES[row.dataset.sessionType]);
+    });
+
+    document.getElementById('ownerConfirmedList').addEventListener('click', async event => {
+      const toggleBtn = event.target.closest('.owner-reschedule-toggle');
+      const saveBtn = event.target.closest('.owner-resched-save');
+      if(!toggleBtn && !saveBtn) return;
+      const row = event.target.closest('[data-booking-id]');
+      if(toggleBtn){
+        row.querySelector('.owner-reschedule-panel').hidden = !row.querySelector('.owner-reschedule-panel').hidden;
+        return;
+      }
+      const dateVal = row.querySelector('.owner-resched-date').value;
+      const timeVal = row.querySelector('.owner-resched-time').value;
+      if(!dateVal || !timeVal){ portalOwnerStatus.textContent = 'Choose a new date and time first.'; return; }
+      saveBtn.disabled = true;
+      try {
+        await rescheduleBooking(
+          row.dataset.bookingId, row.dataset.slotId, dateVal, timeVal,
+          row.dataset.sessionType, row.dataset.uid || null
+        );
+        portalOwnerStatus.textContent = 'Appointment rescheduled.';
+        loadOwnerConfirmed();
+      } catch (err) {
+        portalOwnerStatus.textContent = err.message === 'slot-taken' ? 'That new time is already booked.' : 'Could not reschedule.';
+        saveBtn.disabled = false;
+      }
+    });
 
     async function loadOwnerBookings(){
       const container = document.getElementById('ownerBookingsList');
@@ -1529,8 +1719,8 @@
         container.innerHTML = items.map(b => {
           const label = b.sessionType === '30-minute' ? '30-Minute One-on-One' : '15-Minute Pop-Up';
           return '<div class="portal-request" data-booking-id="' + b.id + '" data-slot-id="' + escapeHtml(b.slotId || '') + '">' +
-            '<div><strong>' + escapeHtml(b.name) + '</strong><p>' + escapeHtml(label) + ' · ' + escapeHtml(b.date) + ' · ' +
-            escapeHtml(minutesToLabel(hhmmToMinutes(b.time))) + ' ET · ' + escapeHtml(b.email) + '</p></div>' +
+            '<div><strong>' + escapeHtml(b.name) + '</strong><p>' + escapeHtml(label) + ' · ' + escapeHtml(formatLocalDateTime(b.date, b.time)) +
+            ' · ' + escapeHtml(b.email) + '</p></div>' +
             '<div class="portal-inline-actions">' +
             '<button class="portal-secondary owner-confirm-booking" type="button">Confirm</button>' +
             '<button class="portal-secondary owner-decline-booking" type="button">Decline</button>' +
@@ -1563,6 +1753,68 @@
       } catch (err) {
         portalOwnerStatus.textContent = 'Could not update that booking.';
         event.target.disabled = false;
+      }
+    });
+
+    // ---- Admin: block out a date ----
+    const blockDateForm = document.getElementById('blockDateForm');
+    const blockDateInput = document.getElementById('blockDateInput');
+    const blockDateStatus = document.getElementById('blockDateStatus');
+    const blockDateSubmitBtn = document.getElementById('blockDateSubmitBtn');
+    blockDateInput.min = new Date().toISOString().slice(0, 10);
+
+    async function loadBlockedDates(){
+      const container = document.getElementById('blockedDatesList');
+      if(!container) return;
+      container.innerHTML = '<p style="color:#6d645d">Loading blocked dates…</p>';
+      try {
+        const snap = await getDocs(collection(db, 'blockouts'));
+        const today = new Date().toISOString().slice(0, 10);
+        const dates = [];
+        snap.forEach(docSnap => { if(docSnap.id >= today) dates.push(docSnap.id); });
+        dates.sort();
+        if(dates.length === 0){
+          container.innerHTML = '<p style="color:#6d645d">No upcoming dates are blocked.</p>';
+          return;
+        }
+        container.innerHTML = dates.map(d =>
+          '<div class="portal-row" data-blocked-date="' + escapeHtml(d) + '"><div><strong>' + escapeHtml(d) + '</strong></div>' +
+          '<button class="portal-secondary owner-unblock-date" type="button" style="min-height:32px;padding:0 10px;font-size:9px">Unblock</button></div>'
+        ).join('');
+      } catch (err) {
+        container.innerHTML = '<p style="color:#6d645d">Could not load blocked dates.</p>';
+      }
+    }
+
+    blockDateForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const dateStr = blockDateInput.value;
+      if(!dateStr) return;
+      blockDateSubmitBtn.disabled = true;
+      blockDateStatus.textContent = 'Blocking…';
+      try {
+        await setDoc(doc(db, 'blockouts', dateStr), { date: dateStr, createdAt: serverTimestamp() });
+        blockDateStatus.textContent = 'Blocked.';
+        blockDateForm.reset();
+        loadBlockedDates();
+      } catch (err) {
+        blockDateStatus.textContent = 'Could not block that date.';
+      } finally {
+        blockDateSubmitBtn.disabled = false;
+      }
+    });
+
+    document.getElementById('blockedDatesList').addEventListener('click', async event => {
+      const btn = event.target.closest('.owner-unblock-date');
+      if(!btn) return;
+      const row = event.target.closest('[data-blocked-date]');
+      btn.disabled = true;
+      try {
+        await deleteDoc(doc(db, 'blockouts', row.dataset.blockedDate));
+        loadBlockedDates();
+      } catch (err) {
+        blockDateStatus.textContent = 'Could not unblock that date.';
+        btn.disabled = false;
       }
     });
 
